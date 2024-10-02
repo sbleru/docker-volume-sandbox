@@ -1,0 +1,37 @@
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  # volumeのマウントは、.dockerignoreに記載されているものもマウントされる
+  # DockerfileでCOPYする場合は、.dockerignoreに記載されているものはコピーされない
+  # 相対パスを利用しない場合は、コンテナ側にボリュームを新しく作るイメージ
+  volumes:
+    # currentディレクトリをマウントする
+    # ホストを信頼し、コンテナ側への反映が遅延することを許容
+    # https://engineering.nifty.co.jp/blog/24155
+    - '.:/app:cached'
+    # 匿名ボリュームを作成することで、.gitの中身を空にする
+    - /app/.git
+    # これでもいい
+    # - '/dev/null:/app/.git' 
+    # 名前付きボリュームを作成して、node_modulesをマウントする
+    # ホストのnode_modulesとはsyncされない。高速化とのトレードオフ https://zenn.dev/reizt/articles/6a4847be84cc4f
+    - node_modules:/app/node_modules
+
+services:
+  init:
+    <<: *app
+    command: [ 'npm', 'install' ]
+  app-hoge:
+    <<: *app
+    command: [ 'tail', '-f', '/dev/null' ]
+    depends_on:
+      init: { condition: 'service_completed_successfully' }
+  app-fuga:
+    <<: *app
+    command: [ 'tail', '-f', '/dev/null' ]
+    depends_on:
+      init: { condition: 'service_completed_successfully' }
+
+volumes:
+  node_modules:
